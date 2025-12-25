@@ -147,7 +147,7 @@
             backdrop-filter: blur(25px);
             -webkit-backdrop-filter: blur(25px);
             border-radius: 35px;
-            padding: 2rem 1.5rem;
+            padding: 3rem 1.5rem;
             text-align: center;
             border: 1px solid rgba(255, 255, 255, 0.8);
             box-shadow: 0 20px 60px -10px rgba(217, 4, 41, 0.12);
@@ -166,46 +166,31 @@
 
         .recipient-name {
             font-family: 'Satisfy', cursive;
-            font-size: clamp(2.5rem, 8vw, 3.5rem);
+            font-size: clamp(3rem, 10vw, 4rem);
             background: linear-gradient(to bottom, var(--primary-red), var(--deep-rose));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 0.2rem;
+            margin-bottom: 0.5rem;
         }
 
         .shayari-line {
             display: block;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.8s ease-out;
             font-family: 'Playfair Display', serif;
-            font-size: 1.05rem;
-            line-height: 1.6;
+            font-size: 1.1rem;
+            line-height: 1.7;
             color: #1a1a1a;
-            margin-bottom: 0.4rem;
+            margin-bottom: 0.6rem;
         }
 
-        /* --- Gemini Features Styling --- */
-        .ai-button {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .ai-button:active {
-            transform: scale(0.95);
+        .card.visible .shayari-line {
+            opacity: 1;
+            transform: translateY(0);
         }
 
-        .loading-dots:after {
-            content: ' .';
-            animation: dots 1.5s steps(5, end) infinite;
-        }
-
-        @keyframes dots {
-            0%, 20% { content: ' .'; }
-            40% { content: ' ..'; }
-            60% { content: ' ...'; }
-            80%, 100% { content: ''; }
-        }
-
-        /* Fixed Butterfly Animation - Parent handles flight, Child handles flutter */
+        /* Butterfly Animation */
         .butterfly-particle {
             position: fixed;
             pointer-events: none;
@@ -247,27 +232,11 @@
             0% { transform: translate(0,0) scale(1.5); opacity: 1; }
             100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
         }
-
-        /* Message Overlay for Errors/Status */
-        #status-toast {
-            position: fixed;
-            bottom: 2rem;
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border-radius: 50px;
-            font-size: 0.8rem;
-            opacity: 0;
-            transition: opacity 0.3s;
-            z-index: 1000;
-            pointer-events: none;
-        }
     </style>
 </head>
 <body>
 
     <div class="bg-glow"></div>
-    <div id="status-toast"></div>
 
     <!-- The Box Section -->
     <div id="mystery-box-container">
@@ -295,64 +264,23 @@
                 <div class="w-8 h-[1px] bg-rose-200"></div>
             </div>
             
-            <div id="shayari-container" class="min-h-[120px] transition-opacity duration-500">
-                <span class="shayari-line">"Main tod leta agar tu gulaab hoti,</span>
-                <span class="shayari-line">Main jawaab banta agar tu sawaal hoti.</span>
-                <span class="shayari-line">Sab jaante hain main nasha nahi karta,</span>
-                <span class="shayari-line">Magar main bhi pee leta agar tu sharaab hoti."</span>
+            <div id="shayari-container">
+                <span class="shayari-line" style="transition-delay: 0.5s">"Main tod leta agar tu gulaab hoti,</span>
+                <span class="shayari-line" style="transition-delay: 1.0s">Main jawaab banta agar tu sawaal hoti.</span>
+                <span class="shayari-line" style="transition-delay: 1.5s">Sab jaante hain main nasha nahi karta,</span>
+                <span class="shayari-line" style="transition-delay: 2.0s">Magar main bhi pee leta agar tu sharaab hoti."</span>
             </div>
 
-            <div class="mt-8 pt-4 border-t border-rose-100 grid grid-cols-2 gap-3">
-                <button id="ai-rewrite" class="ai-button py-2.5 px-3 bg-gradient-to-r from-rose-400 to-pink-500 text-white rounded-full text-[0.7rem] font-bold shadow-lg shadow-rose-200">
-                    ✨ Transform Poetry
-                </button>
-                <button id="ai-tts" class="ai-button py-2.5 px-3 bg-white border border-rose-200 text-rose-500 rounded-full text-[0.7rem] font-bold shadow-md">
-                    ✨ Hear the Whisper
-                </button>
+            <div class="mt-8 pt-4 border-t border-rose-50">
+                <p class="text-[0.65rem] tracking-[0.2em] text-rose-400 font-bold uppercase">Infinite Love</p>
             </div>
-            
-            <p class="mt-4 text-[0.6rem] text-rose-300 tracking-[0.1em] italic">AI Powered Magic</p>
         </div>
     </div>
 
     <script>
-        const apiKey = ""; // Environment will provide this
         const boxContainer = document.getElementById('mystery-box-container');
         const mysteryBox = document.getElementById('mystery-box');
         const card = document.querySelector('.card');
-        const shayariContainer = document.getElementById('shayari-container');
-        const toast = document.getElementById('status-toast');
-
-        // Gemini API Utility with Exponential Backoff
-        async function callGemini(payload, isTTS = false) {
-            const model = isTTS ? 'gemini-2.5-flash-preview-tts' : 'gemini-2.5-flash-preview-09-2025';
-            const endpoint = isTTS ? 'generateContent' : 'generateContent';
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:${endpoint}?key=${apiKey}`;
-            
-            let delay = 1000;
-            for (let i = 0; i < 5; i++) {
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                    return await response.json();
-                } catch (error) {
-                    if (i === 4) throw error;
-                    await new Promise(r => setTimeout(r, delay));
-                    delay *= 2;
-                }
-            }
-        }
-
-        // Show Toast Utility
-        function showToast(msg) {
-            toast.innerText = msg;
-            toast.style.opacity = '1';
-            setTimeout(() => toast.style.opacity = '0', 3000);
-        }
 
         // --- Box Opening Logic ---
         boxContainer.addEventListener('click', () => {
@@ -369,123 +297,12 @@
             }, 700);
         });
 
-        // --- ✨ AI Rewrite Logic ---
-        document.getElementById('ai-rewrite').addEventListener('click', async (e) => {
-            const btn = e.currentTarget;
-            if (btn.classList.contains('processing')) return;
-            
-            btn.classList.add('processing');
-            btn.innerHTML = '✨ Casting Spell<span class="loading-dots"></span>';
-            shayariContainer.style.opacity = '0.3';
-
-            const prompts = [
-                "Rewrite this shayari for Simran to be more ethereal and celestial.",
-                "Rewrite this shayari for Simran to be soulful and deeply romantic.",
-                "Rewrite this shayari for Simran to be whimsical and playful.",
-                "Rewrite this shayari for Simran to be a modern love poem."
-            ];
-            const randomPrompt = prompts[Math.floor(Math.random() * prompts.length)];
-
-            const payload = {
-                contents: [{
-                    parts: [{
-                        text: `Context: This is a surprise gift for someone named Simran. 
-                        Prompt: ${randomPrompt} 
-                        Current Text: ${shayariContainer.innerText}
-                        Rule: Keep it in a few poetic lines. Use Hindi/Urdu written in Roman script if possible. Only return the poem lines, nothing else.`
-                    }]
-                }]
-            };
-
-            try {
-                const data = await callGemini(payload);
-                const newPoem = data.candidates?.[0]?.content?.parts?.[0]?.text || shayariContainer.innerText;
-                
-                // Format lines
-                const lines = newPoem.split('\n').filter(l => l.trim().length > 0).slice(0, 4);
-                shayariContainer.innerHTML = lines.map(line => `<span class="shayari-line">${line.replace(/"/g, '')}</span>`).join('');
-                
-                triggerMagic(); // Add extra sparkles for new poem
-            } catch (err) {
-                showToast("Magic fizzled out! Try again.");
-            } finally {
-                btn.classList.remove('processing');
-                btn.innerHTML = '✨ Transform Poetry';
-                shayariContainer.style.opacity = '1';
-            }
-        });
-
-        // --- ✨ AI TTS Logic ---
-        document.getElementById('ai-tts').addEventListener('click', async (e) => {
-            const btn = e.currentTarget;
-            if (btn.classList.contains('processing')) return;
-
-            btn.classList.add('processing');
-            btn.innerHTML = '✨ Warming Voice<span class="loading-dots"></span>';
-
-            const textToSpeak = shayariContainer.innerText.replace(/\n/g, ". ");
-            const payload = {
-                contents: [{ parts: [{ text: `Say gently and romantically: ${textToSpeak}` }] }],
-                generationConfig: {
-                    responseModalities: ["AUDIO"],
-                    speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Leda" } } }
-                }
-            };
-
-            try {
-                const data = await callGemini(payload, true);
-                const base64Audio = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
-                
-                if (base64Audio) {
-                    const audioBlob = pcmToWav(base64Audio, 24000);
-                    const audioUrl = URL.createObjectURL(audioBlob);
-                    const audio = new Audio(audioUrl);
-                    audio.play();
-                }
-            } catch (err) {
-                showToast("Couldn't catch the whisper.");
-            } finally {
-                btn.classList.remove('processing');
-                btn.innerHTML = '✨ Hear the Whisper';
-            }
-        });
-
-        // Convert PCM16 to WAV Utility
-        function pcmToWav(base64Data, sampleRate) {
-            const byteCharacters = atob(base64Data);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }
-            const byteArray = new Uint8Array(byteNumbers);
-            const buffer = byteArray.buffer;
-            
-            const wavHeader = new ArrayBuffer(44);
-            const view = new DataView(wavHeader);
-            
-            view.setUint32(0, 0x52494646, false); // "RIFF"
-            view.setUint32(4, 36 + buffer.byteLength, true); // Size
-            view.setUint32(8, 0x57415645, false); // "WAVE"
-            view.setUint32(12, 0x666d7420, false); // "fmt "
-            view.setUint32(16, 16, true); // Subchunk 1 size
-            view.setUint16(20, 1, true); // Audio format (PCM)
-            view.setUint16(22, 1, true); // Num channels
-            view.setUint32(24, sampleRate, true); // Sample rate
-            view.setUint32(28, sampleRate * 2, true); // Byte rate
-            view.setUint16(32, 2, true); // Block align
-            view.setUint16(34, 16, true); // Bits per sample
-            view.setUint32(36, 0x64617461, false); // "data"
-            view.setUint32(40, buffer.byteLength, true); // Subchunk 2 size
-
-            return new Blob([wavHeader, buffer], { type: 'audio/wav' });
-        }
-
-        // --- Fixed Visual Effects ---
+        // --- Visual Effects ---
         function triggerMagic() {
             const rect = mysteryBox.style.display === 'none' ? card.getBoundingClientRect() : mysteryBox.getBoundingClientRect();
             const x = rect.left + rect.width / 2;
             const y = rect.top + rect.height / 2;
-            for (let i = 0; i < 24; i++) setTimeout(() => createButterfly(x, y), i * 35);
+            for (let i = 0; i < 28; i++) setTimeout(() => createButterfly(x, y), i * 35);
             for (let i = 0; i < 20; i++) createSparkle(x, y);
         }
 
@@ -493,7 +310,6 @@
             const b = document.createElement('div');
             b.className = 'butterfly-particle';
             
-            // Nested element handles the flutter so transforms don't conflict
             const inner = document.createElement('div');
             inner.className = 'butterfly-inner';
             const variety = ['🦋', '✨', '🌸', '🦋'];
@@ -506,7 +322,7 @@
             const angle = Math.random() * Math.PI * 2;
             const dist = 250 + Math.random() * 350;
             const tx = Math.cos(angle) * dist;
-            const ty = Math.sin(angle) * dist - 120; // Upward bias
+            const ty = Math.sin(angle) * dist - 120;
             
             const duration = 2.5 + Math.random() * 2;
             
